@@ -1,3 +1,15 @@
+// Determine the base URL based on the current environment
+const getBaseUrl = () => {
+    // For development, use localhost:5000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:5000';
+    }
+    // For production, use the current domain
+    return window.location.origin;
+};
+
+const BASE_URL = getBaseUrl();
+
 window.showToast = function(message, type = 'info', duration = 3000) {
     let className = 'toastify-info';
 
@@ -323,7 +335,7 @@ if (document.getElementById('requestOtpButton')) {
         registrationData = { firstname, middlename, lastname, email, password };
 
         try {
-            const response = await fetch('http://localhost:5000/request-otp', {
+            const response = await fetch(`${BASE_URL}/request-otp`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -398,7 +410,7 @@ if (resendOtpButton) {
         resendOtpButton.style.display = 'none';
 
         try {
-            const response = await fetch('http://localhost:5000/request-otp', {
+            const response = await fetch(`${BASE_URL}/request-otp`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -441,7 +453,7 @@ if (document.getElementById('verifyOtpButton')) {
         const finalRegistrationData = { ...registrationData, otp };
 
         try {
-            const response = await fetch('http://localhost:5000/verify-otp-and-register', {
+            const response = await fetch(`${BASE_URL}/verify-otp-and-register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -524,7 +536,7 @@ if (document.getElementById('loginForm')) {
         const password = document.getElementById('login-password').value;
         const passwordField = document.getElementById('login-password');
 
-        fetch('http://localhost:5000/login', {
+        fetch(`${BASE_URL}/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -588,7 +600,7 @@ if (forgotPasswordBreadcrumbs) {
             forgotPasswordEmail = email; 
 
             try {
-                const response = await fetch('http://localhost:5000/forgot-password/request-otp', {
+                const response = await fetch(`${BASE_URL}/forgot-password/request-otp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -629,7 +641,7 @@ if (forgotPasswordBreadcrumbs) {
             }
 
             try {
-                const response = await fetch('http://localhost:5000/forgot-password/verify-otp', {
+                const response = await fetch(`${BASE_URL}/forgot-password/verify-otp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -672,7 +684,7 @@ if (forgotPasswordBreadcrumbs) {
             forgotResendOtpButton.style.display = 'none';
 
             try {
-                const response = await fetch('http://localhost:5000/forgot-password/request-otp', {
+                const response = await fetch(`${BASE_URL}/forgot-password/request-otp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -721,7 +733,7 @@ if (forgotPasswordBreadcrumbs) {
             }
 
             try {
-                const response = await fetch('http://localhost:5000/forgot-password/reset', {
+                const response = await fetch(`${BASE_URL}/forgot-password/reset`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

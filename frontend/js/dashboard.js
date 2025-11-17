@@ -1,3 +1,15 @@
+// Determine the base URL based on the current environment
+const getBaseUrl = () => {
+    // For development, use localhost:5000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:5000';
+    }
+    // For production, use the current domain
+    return window.location.origin;
+};
+
+const BASE_URL = getBaseUrl();
+
 $(document).ready(function() {
     if (!localStorage.getItem('authToken')) {
         sessionStorage.setItem('logoutMessage', 'Please log in to access the dashboard.');
@@ -89,7 +101,7 @@ $(document).ready(function() {
     }); 
 
     const logout = async () => {
-        const data = await fetchData('http://localhost:5000/logout', 'POST');
+        const data = await fetchData(`${BASE_URL}/logout`, 'POST');
         if (data && data.success) {
             localStorage.removeItem('authToken');
             sessionStorage.setItem('logoutMessage', 'You have been successfully logged out.');
@@ -181,7 +193,7 @@ $(document).ready(function() {
     let siteAccountsTable; 
 
     const loadUserAccountInfo = async () => {
-        const data = await fetchData('http://localhost:5000/user-info', 'GET');
+        const data = await fetchData(`${BASE_URL}/user-info`, 'GET');
         if (data && data.success) {
             $('#userId').val(data.user.id);
             $('#firstName').val(data.user.firstname);
@@ -210,7 +222,7 @@ $(document).ready(function() {
         const lastname = $('#lastName').val();
         const email = $('#email').val();
 
-        const data = await fetchData(`http://localhost:5000/users/${userId}`, 'PUT', { firstname, middlename, lastname, email });
+        const data = await fetchData(`${BASE_URL}/users/${userId}`, 'PUT', { firstname, middlename, lastname, email });
         if (data && data.success) {
             showToast(data.message, 'success');
             $('#updateAccountInfoConfirmModal').modal('hide');
@@ -223,7 +235,7 @@ $(document).ready(function() {
 
     siteAccountsTable = $('#siteAccountsTable').DataTable({
         ajax: {
-            url: 'http://localhost:5000/accounts',
+            url: `${BASE_URL}/accounts`,
             type: 'GET',
             headers: { 
                 'Authorization': `Bearer ${localStorage.getItem('authToken')}` 
@@ -290,7 +302,7 @@ $(document).ready(function() {
             formData.append('image', 'images/default.png'); 
         }
 
-        const data = await fetchData('http://localhost:5000/accounts', 'POST', formData, true);
+        const data = await fetchData(`${BASE_URL}/accounts`, 'POST', formData, true);
         if (data && data.success) {
             showToast(data.message, 'success');
             $('#addAccountModal').modal('hide');
@@ -341,7 +353,7 @@ $(document).ready(function() {
             formData.append('image', imageFile);
         }
 
-        const data = await fetchData(`http://localhost:5000/accounts/${id}`, 'PUT', formData, true);
+        const data = await fetchData(`${BASE_URL}/accounts/${id}`, 'PUT', formData, true);
         if (data && data.success) {
             showToast(data.message, 'success');
             $('#editAccountModal').modal('hide');
@@ -368,7 +380,7 @@ $(document).ready(function() {
 
     $('#confirmDeleteBtn').on('click', async function() {
         const id = $('#deleteAccountIdConfirm').val();
-        const data = await fetchData(`http://localhost:5000/accounts/${id}`, 'DELETE');
+        const data = await fetchData(`${BASE_URL}/accounts/${id}`, 'DELETE');
         if (data && data.success) {
             showToast(data.message, 'success');
             $('#deleteAccountModal').modal('hide');
@@ -410,7 +422,7 @@ $(document).ready(function() {
     $('#currentPassword').on('input', async function() {
         const currentPassword = $(this).val();
         if (currentPassword.length > 0) {
-            const data = await fetchData('http://localhost:5000/verify-current-password', 'POST', { currentPassword }, false, true);
+            const data = await fetchData(`${BASE_URL}/verify-current-password`, 'POST', { currentPassword }, false, true);
             if (data && !data.success) {
 
             }
@@ -437,7 +449,7 @@ $(document).ready(function() {
         const newPassword = $('#newPassword').val();
         const confirmNewPassword = $('#confirmNewPassword').val();
 
-        const data = await fetchData('http://localhost:5000/change-password', 'POST', { currentPassword, newPassword, confirmNewPassword }, false, true); // bypassAuthRedirect = true
+        const data = await fetchData(`${BASE_URL}/change-password`, 'POST', { currentPassword, newPassword, confirmNewPassword }, false, true); // bypassAuthRedirect = true
         if (data && data.success) {
             showToast(data.message, 'success');
             if (data.token) {
@@ -466,7 +478,7 @@ $(document).ready(function() {
         const formData = new FormData();
         formData.append('profilePicture', fileInput.files[0]);
 
-        const data = await fetchData('http://localhost:5000/upload-profile-picture', 'POST', formData, true);
+        const data = await fetchData(`${BASE_URL}/upload-profile-picture`, 'POST', formData, true);
         if (data && data.success) {
             showToast('Profile picture updated successfully!', 'success');
             $('.navbar-nav .avatar').attr('src', data.profilePicture);
@@ -477,7 +489,7 @@ $(document).ready(function() {
     });
 
     const loadUserProfilePicture = async () => {
-        const data = await fetchData('http://localhost:5000/profile-picture');
+        const data = await fetchData(`${BASE_URL}/profile-picture`);
         if (data && data.success && data.profilePicture) {
             $('.navbar-nav .avatar').attr('src', data.profilePicture);
         } else {
