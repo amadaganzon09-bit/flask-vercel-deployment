@@ -1,5 +1,5 @@
-// Determine the base URL based on the current environment
-const getBaseUrl = () => {
+// Try to get BASE_URL from script.js, otherwise define it here
+const BASE_URL = window.BASE_URL || (() => {
     // If we're in a browser environment
     if (typeof window !== 'undefined') {
         // For development, use localhost:5000
@@ -11,9 +11,10 @@ const getBaseUrl = () => {
     }
     // Default for server-side or other environments
     return 'http://localhost:5000';
-};
+})();
 
-const BASE_URL = getBaseUrl();
+// Make BASE_URL available globally for other scripts
+window.BASE_URL = BASE_URL;
 
 $(document).ready(function() {
     if (!localStorage.getItem('authToken')) {

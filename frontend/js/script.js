@@ -15,6 +15,9 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
+// Make BASE_URL available globally for other scripts
+window.BASE_URL = BASE_URL;
+
 window.showToast = function(message, type = 'info', duration = 3000) {
     let className = 'toastify-info';
 
