@@ -335,6 +335,8 @@ $(document).ready(function() {
         $('#editUsername').val(username);
         $('#editPassword').val(password);
         $('#currentAccountImage').attr('src', image).show();
+        // Store the current image path in a hidden field
+        $('#editAccountForm').data('currentImage', image);
     });
 
     $('#editAccountForm').on('submit', function(event) {
@@ -359,6 +361,8 @@ $(document).ready(function() {
         formData.append('site', site);
         formData.append('username', username);
         formData.append('password', password);
+        // Add the current image path
+        formData.append('currentImage', $('#editAccountForm').data('currentImage'));
         if (imageFile) {
             formData.append('image', imageFile);
         }
