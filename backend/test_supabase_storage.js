@@ -1,15 +1,11 @@
 require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
 
-// Supabase configuration
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+// Use the same Supabase client as the application
+const supabase = require('./supabaseClient');
 
-console.log('Supabase URL:', supabaseUrl);
-console.log('Supabase Key:', supabaseKey ? 'Key loaded' : 'Key not loaded');
-
-// Create Supabase client
-const supabase = createClient(supabaseUrl, supabaseKey);
+console.log('Using Supabase client from supabaseClient.js');
+console.log('Supabase URL:', process.env.SUPABASE_URL);
+console.log('Supabase Key exists:', !!process.env.SUPABASE_KEY);
 
 async function testStorage() {
   try {

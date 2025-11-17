@@ -1,4 +1,4 @@
-const supabase = require('../db');
+const supabase = require('../supabaseClient');
 
 /**
  * Upload a file to Supabase Storage
