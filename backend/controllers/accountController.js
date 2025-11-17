@@ -16,7 +16,14 @@ exports.createAccount = async (req, res) => {
         // Check if we're running on Vercel
         if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
             // Move file from /tmp to images directory
-            const targetPath = path.join(__dirname, '../../frontend/images', req.file.filename);
+            const imagesDir = path.join(__dirname, '../../frontend/images');
+            const targetPath = path.join(imagesDir, req.file.filename);
+            
+            // Ensure the target directory exists
+            if (!fs.existsSync(imagesDir)) {
+                fs.mkdirSync(imagesDir, { recursive: true });
+            }
+            
             try {
                 fs.renameSync(req.file.path, targetPath);
             } catch (moveError) {
@@ -27,7 +34,7 @@ exports.createAccount = async (req, res) => {
                     fs.unlinkSync(req.file.path);
                 } catch (copyError) {
                     console.error('Error copying file:', copyError);
-                    return res.status(500).json({ success: false, message: 'Error processing uploaded file.' });
+                    return res.status(500).json({ success: false, message: 'Error processing uploaded file in create account. Please try again or contact support.' });
                 }
             }
         }
@@ -105,7 +112,14 @@ exports.updateAccount = async (req, res) => {
         // Check if we're running on Vercel
         if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
             // Move file from /tmp to images directory
-            const targetPath = path.join(__dirname, '../../frontend/images', req.file.filename);
+            const imagesDir = path.join(__dirname, '../../frontend/images');
+            const targetPath = path.join(imagesDir, req.file.filename);
+            
+            // Ensure the target directory exists
+            if (!fs.existsSync(imagesDir)) {
+                fs.mkdirSync(imagesDir, { recursive: true });
+            }
+            
             try {
                 fs.renameSync(req.file.path, targetPath);
             } catch (moveError) {
@@ -116,7 +130,7 @@ exports.updateAccount = async (req, res) => {
                     fs.unlinkSync(req.file.path);
                 } catch (copyError) {
                     console.error('Error copying file:', copyError);
-                    return res.status(500).json({ success: false, message: 'Error processing uploaded file.' });
+                    return res.status(500).json({ success: false, message: 'Error processing uploaded file in update account. Please try again or contact support.' });
                 }
             }
         }
