@@ -25,7 +25,13 @@ const uploadToVercelBlob = async (file, folder = 'images') => {
     return blob.url;
   } catch (error) {
     console.error('Error uploading to Vercel Blob:', error);
-    throw new Error('Failed to upload file to Vercel Blob storage');
+    console.error('File details:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      bufferLength: file.buffer ? file.buffer.length : 0
+    });
+    throw new Error(`Failed to upload file to Vercel Blob storage: ${error.message}`);
   }
 };
 

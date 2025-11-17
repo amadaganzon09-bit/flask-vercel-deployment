@@ -40,7 +40,9 @@ exports.createAccount = async (req, res) => {
     let imagePath = 'images/default.png';
     if (req.file) {
         // Check if we're running on Vercel
-        if (process.env.VERCEL) {
+        const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION;
+        
+        if (isVercel) {
             // Upload to Vercel Blob storage
             try {
                 imagePath = await uploadToVercelBlob(req.file, 'accounts');
@@ -116,7 +118,7 @@ exports.createAccount = async (req, res) => {
         if (req.file) {
             // For Vercel deployments using Vercel Blob, we don't need to delete local files
             // For local development, delete the file
-            if (!process.env.VERCEL) {
+            if (!(process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION)) {
                 let filePath = req.file.path;
                 if (req.file.path && req.file.path.startsWith('/tmp')) {
                     const imagesDir = getImagesDirectory(__dirname);
@@ -171,7 +173,9 @@ exports.updateAccount = async (req, res) => {
     let imagePath = req.body.currentImage;
     if (req.file) {
         // Check if we're running on Vercel
-        if (process.env.VERCEL) {
+        const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION;
+        
+        if (isVercel) {
             // Upload to Vercel Blob storage
             try {
                 imagePath = await uploadToVercelBlob(req.file, 'accounts');
@@ -243,7 +247,7 @@ exports.updateAccount = async (req, res) => {
         if (req.file) {
             // For Vercel deployments using Vercel Blob, we don't need to delete local files
             // For local development, delete the file
-            if (!process.env.VERCEL) {
+            if (!(process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION)) {
                 let filePath = req.file.path;
                 if (req.file.path && req.file.path.startsWith('/tmp')) {
                     const imagesDir = getImagesDirectory(__dirname);
@@ -262,7 +266,7 @@ exports.updateAccount = async (req, res) => {
         if (req.file) {
             // For Vercel deployments using Vercel Blob, we don't need to delete local files
             // For local development, delete the file
-            if (!process.env.VERCEL) {
+            if (!(process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION)) {
                 let filePath = req.file.path;
                 if (req.file.path && req.file.path.startsWith('/tmp')) {
                     const imagesDir = getImagesDirectory(__dirname);

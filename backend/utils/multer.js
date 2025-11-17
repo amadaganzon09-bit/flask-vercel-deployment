@@ -4,7 +4,8 @@ const fs = require('fs');
 
 // For Vercel deployments, we'll use memory storage to upload directly to Vercel Blob
 // For local development, we'll use disk storage
-const storage = process.env.VERCEL ? 
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true' || process.env.NOW_REGION;
+const storage = isVercel ? 
     multer.memoryStorage() : // Store in memory for Vercel
     multer.diskStorage({
         destination: function (req, file, cb) {
