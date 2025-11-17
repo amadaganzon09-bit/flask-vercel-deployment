@@ -40,7 +40,7 @@ A full-stack web application with user authentication, dashboard, and account ma
 
 1. Clone the repository
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/badboygamingph/express-vercel-deployment.git
    cd fullstack
    ```
 
