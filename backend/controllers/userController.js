@@ -4,6 +4,7 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET, BASE_URL } = require('../config/config');
+const { uploadToVercelBlob } = require('../utils/vercelBlob');
 
 // Helper function to determine the correct images directory path
 const getImagesDirectory = (baseDir) => {
@@ -45,8 +46,9 @@ exports.getUserInfo = async (req, res) => {
 
     if (users.length > 0) {
         const user = users[0];
+        // For Vercel Blob URLs, return as-is since they're already full URLs
+        // For local images, return relative path
         if (user.profilePicture && !user.profilePicture.startsWith('http')) {
-            // For static images, return relative path instead of constructing full URL
             user.profilePicture = user.profilePicture.replace(/\\/g, '/');
         }
         res.json({ success: true, user: user });
@@ -91,48 +93,60 @@ exports.uploadProfilePicture = async (req, res) => {
     }
 
     // Check if we're running on Vercel
-    if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-        // Move file from /tmp to images directory
-        console.log('Current __dirname:', __dirname);
-        const imagesDir = getImagesDirectory(__dirname);
-        const targetPath = path.join(imagesDir, req.file.filename);
-        console.log('Calculated targetPath:', targetPath);
-        
-        // Ensure the target directory exists
-        console.log('Checking if directory exists:', imagesDir);
-        if (!fs.existsSync(imagesDir)) {
-            console.log('Creating directory:', imagesDir);
-            try {
-                fs.mkdirSync(imagesDir, { recursive: true });
-                console.log('Directory created successfully');
-            } catch (mkdirError) {
-                console.error('Error creating directory:', mkdirError);
-                return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
-            }
-        } else {
-            console.log('Directory already exists');
-        }
-        
+    let profilepicturePath;
+    if (process.env.VERCEL) {
+        // Upload to Vercel Blob storage
         try {
-            console.log('Moving file from', req.file.path, 'to', targetPath);
-            fs.renameSync(req.file.path, targetPath);
-            console.log('File moved successfully');
-        } catch (moveError) {
-            console.error('Error moving file:', moveError);
-            // If rename fails, try copy and delete
+            profilepicturePath = await uploadToVercelBlob(req.file, 'profiles');
+            console.log('File uploaded to Vercel Blob:', profilepicturePath);
+        } catch (uploadError) {
+            console.error('Error uploading to Vercel Blob:', uploadError);
+            return res.status(500).json({ success: false, message: 'Error uploading profile picture to Vercel Blob storage.' });
+        }
+    } else {
+        // For local development, move file from /tmp to images directory
+        if (req.file.path && req.file.path.startsWith('/tmp')) {
+            // Move file from /tmp to images directory
+            console.log('Current __dirname:', __dirname);
+            const imagesDir = getImagesDirectory(__dirname);
+            const targetPath = path.join(imagesDir, req.file.filename);
+            console.log('Calculated targetPath:', targetPath);
+            
+            // Ensure the target directory exists
+            console.log('Checking if directory exists:', imagesDir);
+            if (!fs.existsSync(imagesDir)) {
+                console.log('Creating directory:', imagesDir);
+                try {
+                    fs.mkdirSync(imagesDir, { recursive: true });
+                    console.log('Directory created successfully');
+                } catch (mkdirError) {
+                    console.error('Error creating directory:', mkdirError);
+                    return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
+                }
+            } else {
+                console.log('Directory already exists');
+            }
+            
             try {
-                console.log('Attempting to copy file instead');
-                fs.copyFileSync(req.file.path, targetPath);
-                fs.unlinkSync(req.file.path);
-                console.log('File copied and original deleted successfully');
-            } catch (copyError) {
-                console.error('Error copying file:', copyError);
-                return res.status(500).json({ success: false, message: 'Error processing uploaded profile picture. Please try again or contact support.' });
+                console.log('Moving file from', req.file.path, 'to', targetPath);
+                fs.renameSync(req.file.path, targetPath);
+                console.log('File moved successfully');
+            } catch (moveError) {
+                console.error('Error moving file:', moveError);
+                // If rename fails, try copy and delete
+                try {
+                    console.log('Attempting to copy file instead');
+                    fs.copyFileSync(req.file.path, targetPath);
+                    fs.unlinkSync(req.file.path);
+                    console.log('File copied and original deleted successfully');
+                } catch (copyError) {
+                    console.error('Error copying file:', copyError);
+                    return res.status(500).json({ success: false, message: 'Error processing uploaded profile picture. Please try again or contact support.' });
+                }
             }
         }
+        profilepicturePath = `/images/${req.file.filename}`;
     }
-
-    const profilepicturePath = `/images/${req.file.filename}`;
 
     const { data, error } = await supabase
         .from('users')
@@ -141,31 +155,43 @@ exports.uploadProfilePicture = async (req, res) => {
 
     if (error) {
         console.error('Error updating profile picture in DB:', error);
-        let filePath = req.file.path;
-        if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-            const imagesDir = getImagesDirectory(__dirname);
-            filePath = path.join(imagesDir, req.file.filename);
+        // For Vercel deployments using Vercel Blob, we don't need to delete local files
+        // For local development, delete the file
+        if (!process.env.VERCEL) {
+            let filePath = req.file.path;
+            if (req.file.path && req.file.path.startsWith('/tmp')) {
+                const imagesDir = getImagesDirectory(__dirname);
+                filePath = path.join(imagesDir, req.file.filename);
+            }
+            fs.unlink(filePath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+            });
         }
-        fs.unlink(filePath, (unlinkErr) => {
-            if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
-        });
         return res.status(500).json({ success: false, message: 'Error saving profile picture.' });
     }
 
     // Check if no rows were affected (user not found or not owned by user)
     if (data && data.length === 0) {
-        let filePath = req.file.path;
-        if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-            const imagesDir = getImagesDirectory(__dirname);
-            filePath = path.join(imagesDir, req.file.filename);
+        // For Vercel deployments using Vercel Blob, we don't need to delete local files
+        // For local development, delete the file
+        if (!process.env.VERCEL) {
+            let filePath = req.file.path;
+            if (req.file.path && req.file.path.startsWith('/tmp')) {
+                const imagesDir = getImagesDirectory(__dirname);
+                filePath = path.join(imagesDir, req.file.filename);
+            }
+            fs.unlink(filePath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+            });
         }
-        fs.unlink(filePath, (unlinkErr) => {
-            if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
-        });
         return res.status(404).json({ success: false, message: 'User not found or you do not have permission to update profile picture.' });
     }
 
-    const fullProfilePicturePath = `${BASE_URL}${profilepicturePath.replace(/\\/g, '/')}`;
+    // For Vercel Blob URLs, return as-is since they're already full URLs
+    // For local images, construct full URL
+    const fullProfilePicturePath = profilepicturePath.startsWith('http') ? 
+        profilepicturePath : 
+        `${BASE_URL}${profilepicturePath.replace(/\\/g, '/')}`;
     res.json({ success: true, message: 'Profile picture updated successfully!', profilepicture: fullProfilePicturePath });
 };
 
@@ -184,8 +210,9 @@ exports.getProfilePicture = async (req, res) => {
 
     if (users.length > 0) {
         let profilepicture = users[0].profilePicture;
+        // For Vercel Blob URLs, return as-is since they're already full URLs
+        // For local images, return relative path
         if (profilepicture && !profilepicture.startsWith('http')) {
-            // For static images, return relative path instead of constructing full URL
             profilepicture = profilepicture.replace(/\\/g, '/');
         }
         res.json({ success: true, profilepicture: profilepicture });

@@ -2,6 +2,7 @@ const supabase = require('../db');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config/config');
+const { uploadToVercelBlob } = require('../utils/vercelBlob');
 
 // Helper function to determine the correct images directory path
 const getImagesDirectory = (baseDir) => {
@@ -39,48 +40,60 @@ exports.createAccount = async (req, res) => {
     let imagePath = 'images/default.png';
     if (req.file) {
         // Check if we're running on Vercel
-        if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-            // Move file from /tmp to images directory
-            console.log('Current __dirname:', __dirname);
-            const imagesDir = getImagesDirectory(__dirname);
-            const targetPath = path.join(imagesDir, req.file.filename);
-            console.log('Calculated targetPath:', targetPath);
-            
-            // Ensure the target directory exists
-            console.log('Checking if directory exists:', imagesDir);
-            if (!fs.existsSync(imagesDir)) {
-                console.log('Creating directory:', imagesDir);
-                try {
-                    fs.mkdirSync(imagesDir, { recursive: true });
-                    console.log('Directory created successfully');
-                } catch (mkdirError) {
-                    console.error('Error creating directory:', mkdirError);
-                    return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
-                }
-            } else {
-                console.log('Directory already exists');
-            }
-            
+        if (process.env.VERCEL) {
+            // Upload to Vercel Blob storage
             try {
-                console.log('Moving file from', req.file.path, 'to', targetPath);
-                fs.renameSync(req.file.path, targetPath);
-                console.log('File moved successfully');
-            } catch (moveError) {
-                console.error('Error moving file:', moveError);
-                // If rename fails, try copy and delete
+                imagePath = await uploadToVercelBlob(req.file, 'accounts');
+                console.log('File uploaded to Vercel Blob:', imagePath);
+            } catch (uploadError) {
+                console.error('Error uploading to Vercel Blob:', uploadError);
+                return res.status(500).json({ success: false, message: 'Error uploading image to Vercel Blob storage.' });
+            }
+        } else {
+            // For local development, move file from /tmp to images directory
+            if (req.file.path && req.file.path.startsWith('/tmp')) {
+                // Move file from /tmp to images directory
+                console.log('Current __dirname:', __dirname);
+                const imagesDir = getImagesDirectory(__dirname);
+                const targetPath = path.join(imagesDir, req.file.filename);
+                console.log('Calculated targetPath:', targetPath);
+                
+                // Ensure the target directory exists
+                console.log('Checking if directory exists:', imagesDir);
+                if (!fs.existsSync(imagesDir)) {
+                    console.log('Creating directory:', imagesDir);
+                    try {
+                        fs.mkdirSync(imagesDir, { recursive: true });
+                        console.log('Directory created successfully');
+                    } catch (mkdirError) {
+                        console.error('Error creating directory:', mkdirError);
+                        return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
+                    }
+                } else {
+                    console.log('Directory already exists');
+                }
+                
                 try {
-                    console.log('Attempting to copy file instead');
-                    fs.copyFileSync(req.file.path, targetPath);
-                    fs.unlinkSync(req.file.path);
-                    console.log('File copied and original deleted successfully');
-                } catch (copyError) {
-                    console.error('Error copying file:', copyError);
-                    return res.status(500).json({ success: false, message: 'Error processing uploaded file in create account. Please try again or contact support.' });
+                    console.log('Moving file from', req.file.path, 'to', targetPath);
+                    fs.renameSync(req.file.path, targetPath);
+                    console.log('File moved successfully');
+                } catch (moveError) {
+                    console.error('Error moving file:', moveError);
+                    // If rename fails, try copy and delete
+                    try {
+                        console.log('Attempting to copy file instead');
+                        fs.copyFileSync(req.file.path, targetPath);
+                        fs.unlinkSync(req.file.path);
+                        console.log('File copied and original deleted successfully');
+                    } catch (copyError) {
+                        console.error('Error copying file:', copyError);
+                        return res.status(500).json({ success: false, message: 'Error processing uploaded file in create account. Please try again or contact support.' });
+                    }
                 }
             }
+            // For local development, the file is already in the correct directory
+            imagePath = `images/${req.file.filename}`;
         }
-        // For local development, the file is already in the correct directory
-        imagePath = `images/${req.file.filename}`;
     } else if (req.body.image === 'images/default.png') {
         imagePath = 'images/default.png';
     }
@@ -101,14 +114,18 @@ exports.createAccount = async (req, res) => {
     if (error) {
         console.error(error);
         if (req.file) {
-            let filePath = req.file.path;
-            if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-                const imagesDir = getImagesDirectory(__dirname);
-                filePath = path.join(imagesDir, req.file.filename);
+            // For Vercel deployments using Vercel Blob, we don't need to delete local files
+            // For local development, delete the file
+            if (!process.env.VERCEL) {
+                let filePath = req.file.path;
+                if (req.file.path && req.file.path.startsWith('/tmp')) {
+                    const imagesDir = getImagesDirectory(__dirname);
+                    filePath = path.join(imagesDir, req.file.filename);
+                }
+                fs.unlink(filePath, (unlinkErr) => {
+                    if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+                });
             }
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
-            });
         }
         return res.status(500).json({ success: false, message: 'Error creating account.' });
     }
@@ -154,48 +171,60 @@ exports.updateAccount = async (req, res) => {
     let imagePath = req.body.currentImage;
     if (req.file) {
         // Check if we're running on Vercel
-        if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-            // Move file from /tmp to images directory
-            console.log('Current __dirname:', __dirname);
-            const imagesDir = getImagesDirectory(__dirname);
-            const targetPath = path.join(imagesDir, req.file.filename);
-            console.log('Calculated targetPath:', targetPath);
-            
-            // Ensure the target directory exists
-            console.log('Checking if directory exists:', imagesDir);
-            if (!fs.existsSync(imagesDir)) {
-                console.log('Creating directory:', imagesDir);
-                try {
-                    fs.mkdirSync(imagesDir, { recursive: true });
-                    console.log('Directory created successfully');
-                } catch (mkdirError) {
-                    console.error('Error creating directory:', mkdirError);
-                    return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
-                }
-            } else {
-                console.log('Directory already exists');
-            }
-            
+        if (process.env.VERCEL) {
+            // Upload to Vercel Blob storage
             try {
-                console.log('Moving file from', req.file.path, 'to', targetPath);
-                fs.renameSync(req.file.path, targetPath);
-                console.log('File moved successfully');
-            } catch (moveError) {
-                console.error('Error moving file:', moveError);
-                // If rename fails, try copy and delete
+                imagePath = await uploadToVercelBlob(req.file, 'accounts');
+                console.log('File uploaded to Vercel Blob:', imagePath);
+            } catch (uploadError) {
+                console.error('Error uploading to Vercel Blob:', uploadError);
+                return res.status(500).json({ success: false, message: 'Error uploading image to Vercel Blob storage.' });
+            }
+        } else {
+            // For local development, move file from /tmp to images directory
+            if (req.file.path && req.file.path.startsWith('/tmp')) {
+                // Move file from /tmp to images directory
+                console.log('Current __dirname:', __dirname);
+                const imagesDir = getImagesDirectory(__dirname);
+                const targetPath = path.join(imagesDir, req.file.filename);
+                console.log('Calculated targetPath:', targetPath);
+                
+                // Ensure the target directory exists
+                console.log('Checking if directory exists:', imagesDir);
+                if (!fs.existsSync(imagesDir)) {
+                    console.log('Creating directory:', imagesDir);
+                    try {
+                        fs.mkdirSync(imagesDir, { recursive: true });
+                        console.log('Directory created successfully');
+                    } catch (mkdirError) {
+                        console.error('Error creating directory:', mkdirError);
+                        return res.status(500).json({ success: false, message: 'Error creating image directory. Please try again or contact support.' });
+                    }
+                } else {
+                    console.log('Directory already exists');
+                }
+                
                 try {
-                    console.log('Attempting to copy file instead');
-                    fs.copyFileSync(req.file.path, targetPath);
-                    fs.unlinkSync(req.file.path);
-                    console.log('File copied and original deleted successfully');
-                } catch (copyError) {
-                    console.error('Error copying file:', copyError);
-                    return res.status(500).json({ success: false, message: 'Error processing uploaded file in update account. Please try again or contact support.' });
+                    console.log('Moving file from', req.file.path, 'to', targetPath);
+                    fs.renameSync(req.file.path, targetPath);
+                    console.log('File moved successfully');
+                } catch (moveError) {
+                    console.error('Error moving file:', moveError);
+                    // If rename fails, try copy and delete
+                    try {
+                        console.log('Attempting to copy file instead');
+                        fs.copyFileSync(req.file.path, targetPath);
+                        fs.unlinkSync(req.file.path);
+                        console.log('File copied and original deleted successfully');
+                    } catch (copyError) {
+                        console.error('Error copying file:', copyError);
+                        return res.status(500).json({ success: false, message: 'Error processing uploaded file in update account. Please try again or contact support.' });
+                    }
                 }
             }
+            // For local development, the file is already in the correct directory
+            imagePath = `images/${req.file.filename}`;
         }
-        // For local development, the file is already in the correct directory
-        imagePath = `images/${req.file.filename}`;
     }
 
     const { data, error } = await supabase
@@ -212,14 +241,18 @@ exports.updateAccount = async (req, res) => {
     if (error) {
         console.error(error);
         if (req.file) {
-            let filePath = req.file.path;
-            if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-                const imagesDir = getImagesDirectory(__dirname);
-                filePath = path.join(imagesDir, req.file.filename);
+            // For Vercel deployments using Vercel Blob, we don't need to delete local files
+            // For local development, delete the file
+            if (!process.env.VERCEL) {
+                let filePath = req.file.path;
+                if (req.file.path && req.file.path.startsWith('/tmp')) {
+                    const imagesDir = getImagesDirectory(__dirname);
+                    filePath = path.join(imagesDir, req.file.filename);
+                }
+                fs.unlink(filePath, (unlinkErr) => {
+                    if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+                });
             }
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
-            });
         }
         return res.status(500).json({ success: false, message: 'Error updating account.' });
     }
@@ -227,14 +260,18 @@ exports.updateAccount = async (req, res) => {
     // Check if no rows were affected (account not found or not owned by user)
     if (data && data.length === 0) {
         if (req.file) {
-            let filePath = req.file.path;
-            if (process.env.VERCEL && req.file.path.startsWith('/tmp')) {
-                const imagesDir = getImagesDirectory(__dirname);
-                filePath = path.join(imagesDir, req.file.filename);
+            // For Vercel deployments using Vercel Blob, we don't need to delete local files
+            // For local development, delete the file
+            if (!process.env.VERCEL) {
+                let filePath = req.file.path;
+                if (req.file.path && req.file.path.startsWith('/tmp')) {
+                    const imagesDir = getImagesDirectory(__dirname);
+                    filePath = path.join(imagesDir, req.file.filename);
+                }
+                fs.unlink(filePath, (unlinkErr) => {
+                    if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
+                });
             }
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting uploaded file:', unlinkErr);
-            });
         }
         return res.status(404).json({ success: false, message: 'Account not found or you do not have permission to update it.' });
     }
