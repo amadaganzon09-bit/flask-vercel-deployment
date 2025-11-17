@@ -275,7 +275,7 @@ $(document).ready(function() {
                 data: 'image',
                 render: function(data, type, row) {
                     // Use BASE_URL for default images to avoid mixed content issues
-                    const imageUrl = data || 'images/default.png';
+                    const imageUrl = data ? `${BASE_URL}/${data}` : `${BASE_URL}/images/default.png`;
                     return `<img src="${imageUrl}" alt="Account Image" class="img-thumbnail" style="width: 50px; height: 50px; object-fit: cover;">`;
                 }
             },
@@ -283,7 +283,7 @@ $(document).ready(function() {
                 data: null,
                 render: function(data, type, row) {
                     return `
-                        <button class="btn btn-sm btn-info edit-btn" data-id="${row.id}" data-site="${row.site}" data-username="${row.username}" data-password="${row.password}" data-image="${row.image || 'images/default.png'}" data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit</button>
+                        <button class="btn btn-sm btn-info edit-btn" data-id="${row.id}" data-site="${row.site}" data-username="${row.username}" data-password="${row.password}" data-image="${row.image ? `${BASE_URL}/${row.image}` : `${BASE_URL}/images/default.png`}" data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit</button>
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Delete</button>
                     `;
                 }
@@ -345,7 +345,7 @@ $(document).ready(function() {
         $('#editSite').val(site);
         $('#editUsername').val(username);
         $('#editPassword').val(password);
-        $('#currentAccountImage').attr('src', image).show();
+        $('#currentAccountImage').attr('src', image ? `${BASE_URL}/${image}` : `${BASE_URL}/images/default.png`).show();
         // Store the current image path in a hidden field
         $('#editAccountForm').data('currentImage', image);
     });
