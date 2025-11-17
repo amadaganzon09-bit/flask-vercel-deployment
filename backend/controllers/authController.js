@@ -8,8 +8,11 @@ const { JWT_SECRET } = require('../config/config');
 
 exports.requestOtp = async (req, res) => {
     const { email } = req.body;
+    
+    console.log('OTP request for email:', email);
 
     if (!email) {
+        console.log('Email is required');
         return res.status(400).json({ success: false, message: 'Email is required.' });
     }
 
@@ -23,13 +26,18 @@ exports.requestOtp = async (req, res) => {
         console.error('Database error during email check:', userError);
         return res.status(500).json({ success: false, message: 'An error occurred during email check.' });
     }
+    
+    console.log('Existing users with email:', users.length);
 
     if (users.length > 0) {
+        console.log('Email already in use:', email);
         return res.status(409).json({ success: false, message: 'Email already in use. Please try logging in.' });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + (5 * 60 * 1000));
+    
+    console.log('Generated OTP:', otp, 'Expires at:', expiresAt);
 
     // Insert or update OTP
     const { data, error: otpError } = await supabase
@@ -43,6 +51,8 @@ exports.requestOtp = async (req, res) => {
         console.error('Error storing OTP in DB:', otpError);
         return res.status(500).json({ success: false, message: 'An error occurred while storing OTP.' });
     }
+    
+    console.log('OTP stored successfully');
 
     try {
         const emailTemplatePath = path.join(__dirname, '../../frontend', 'templates', 'otp_email.html');
@@ -56,6 +66,7 @@ exports.requestOtp = async (req, res) => {
             html: emailHtml,
             text: `Your One-Time Password (OTP) is: ${otp}. It is valid for 5 minutes. Do not share this with anyone.`,
         });
+        console.log('OTP email sent successfully to:', email);
         res.json({ success: true, message: 'OTP sent successfully to ' + email });
     } catch (error) {
         console.error('Error sending email:', error);
@@ -122,8 +133,12 @@ exports.requestPasswordResetOtp = async (req, res) => {
 
 exports.verifyOtpAndRegister = async (req, res) => {
     const { firstname, middlename, lastname, email, password, otp } = req.body;
+    
+    console.log('Registration attempt for email:', email);
+    console.log('Registration data:', { firstname, middlename, lastname, email, password: password ? '***' : 'undefined', otp: otp ? '***' : 'undefined' });
 
     if (!firstname || !lastname || !email || !password || !otp) {
+        console.log('Missing required fields');
         return res.status(400).json({ success: false, message: 'All fields including OTP are required.' });
     }
 
@@ -137,15 +152,22 @@ exports.verifyOtpAndRegister = async (req, res) => {
         console.error('Error retrieving OTP from DB:', otpError);
         return res.status(500).json({ success: false, message: 'An error occurred during OTP verification.' });
     }
+    
+    console.log('OTPs found:', otps.length);
 
     if (otps.length === 0) {
+        console.log('No OTP found for email:', email);
         return res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
     }
 
     const storedOtp = otps[0];
     const currentTime = new Date();
+    
+    console.log('Stored OTP:', storedOtp.otp_code, 'Provided OTP:', otp);
+    console.log('Current time:', currentTime, 'Expires at:', new Date(storedOtp.expires_at));
 
     if (storedOtp.otp_code !== otp || currentTime > new Date(storedOtp.expires_at)) {
+        console.log('OTP mismatch or expired');
         // Delete expired/invalid OTP
         const { error: deleteError } = await supabase
             .from('otps')
@@ -163,22 +185,27 @@ exports.verifyOtpAndRegister = async (req, res) => {
         .eq('email', email);
 
     if (checkError) {
-        console.error(checkError);
+        console.error('Error checking existing user:', checkError);
         res.status(500).json({ success: false, message: 'An error occurred.' });
         return;
     }
+    
+    console.log('Existing users with email:', existingUsers.length);
 
     if (existingUsers.length > 0) {
+        console.log('Email already in use:', email);
         res.status(409).json({ success: false, message: 'Email already in use.' });
         return;
     }
 
     bcrypt.hash(password, 10, async (hashErr, hashedPassword) => {
         if (hashErr) {
-            console.error(hashErr);
+            console.error('Password hashing error:', hashErr);
             res.status(500).json({ success: false, message: 'An error occurred during password hashing.' });
             return;
         }
+        
+        console.log('Password hashed successfully');
 
         // Insert user
         const { data: newUser, error: insertError } = await supabase
@@ -190,16 +217,18 @@ exports.verifyOtpAndRegister = async (req, res) => {
                     lastname: lastname,
                     email: email,
                     password: hashedPassword,
-                    profilePicture: 'images/default-profile.png'
+                    profilepicture: 'images/default-profile.png'
                 }
             ])
             .select();
 
         if (insertError) {
-            console.error(insertError);
+            console.error('Error inserting user:', insertError);
             res.status(500).json({ success: false, message: 'An error occurred.' });
             return;
         }
+        
+        console.log('User inserted successfully:', newUser);
 
         // Delete OTP after successful registration
         const { error: deleteError } = await supabase
@@ -303,6 +332,8 @@ exports.resetPassword = async (req, res) => {
 
 exports.login = async (req, res) => {
     const { email, password } = req.body;
+    
+    console.log('Login attempt for email:', email);
 
     // Get user
     const { data: users, error } = await supabase
@@ -311,17 +342,24 @@ exports.login = async (req, res) => {
         .eq('email', email);
 
     if (error) {
-        console.error(error);
+        console.error('Database error during login:', error);
         return res.status(500).json({ success: false, message: 'An error occurred.' });
     }
+    
+    console.log('Users found:', users.length);
 
     if (users.length > 0) {
         const user = users[0];
+        console.log('User found:', user.email);
+        
         bcrypt.compare(password, user.password, async (compareErr, isMatch) => {
             if (compareErr) {
-                console.error(compareErr);
+                console.error('Password comparison error:', compareErr);
                 return res.status(500).json({ success: false, message: 'An error occurred during password comparison.' });
             }
+            
+            console.log('Password match:', isMatch);
+            
             if (isMatch) {
                 const expiresIn = '1h';
                 const accessToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn });
