@@ -1,11 +1,22 @@
 // Use the Vercel backend URL for all environments
+// Use relative path for backend URL to support both localhost and Vercel
+// Use relative path for backend URL to support both localhost and Vercel
 if (typeof BASE_URL === 'undefined') {
-    const BASE_URL = 'https://express-vercel-deployment-mu.vercel.app';
+    const getBackendUrl = () => {
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+
+        if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '5000') {
+            return 'http://127.0.0.1:5000';
+        }
+        return '';
+    };
+    const BASE_URL = getBackendUrl();
     // Make BASE_URL available globally for other scripts
     window.BASE_URL = BASE_URL;
 }
 
-$(document).ready(function() {
+$(document).ready(function () {
     if (!localStorage.getItem('authToken')) {
         sessionStorage.setItem('logoutMessage', 'Please log in to access the dashboard.');
         window.location.href = 'index.html';
@@ -13,29 +24,29 @@ $(document).ready(function() {
     }
 
     const body = $('body');
-    const sidebarToggleBtns = $('.toggle-btn'); 
+    const sidebarToggleBtns = $('.toggle-btn');
     const sidebarOverlay = $('.sidebar-overlay');
     const sidebarLinks = $('.sidebar-link');
 
     // Toggle sidebar on button click
-    sidebarToggleBtns.on('click', function(e) {
+    sidebarToggleBtns.on('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         if ($(window).width() <= 768) {
-            body.toggleClass('sidebar-open'); 
+            body.toggleClass('sidebar-open');
         } else {
-            body.toggleClass('sidebar-collapsed'); 
+            body.toggleClass('sidebar-collapsed');
         }
     });
 
     // Close sidebar when clicking overlay
-    sidebarOverlay.on('click', function() {
-        body.removeClass('sidebar-open'); 
+    sidebarOverlay.on('click', function () {
+        body.removeClass('sidebar-open');
     });
 
     // Close sidebar when clicking a sidebar link on mobile
-    sidebarLinks.on('click', function() {
+    sidebarLinks.on('click', function () {
         if ($(window).width() <= 768) {
             body.removeClass('sidebar-open');
         }
@@ -43,11 +54,11 @@ $(document).ready(function() {
 
     // Handle window resize
     let resizeTimer;
-    $(window).on('resize', function() {
+    $(window).on('resize', function () {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(function() {
+        resizeTimer = setTimeout(function () {
             const windowWidth = $(window).width();
-            
+
             if (windowWidth > 768) {
                 // Desktop mode - remove mobile sidebar state
                 body.removeClass('sidebar-open');
@@ -66,18 +77,18 @@ $(document).ready(function() {
     }
 
     // Prevent body scroll when sidebar is open on mobile
-    body.on('sidebar-open', function() {
+    body.on('sidebar-open', function () {
         if ($(window).width() <= 768 && body.hasClass('sidebar-open')) {
             body.css('overflow', 'hidden');
         }
     });
 
     // Restore body scroll when sidebar is closed
-    $(document).on('click', function(e) {
+    $(document).on('click', function (e) {
         if (body.hasClass('sidebar-open')) {
             const $sidebar = $('#sidebar');
             const $toggleBtn = $('.toggle-btn');
-            
+
             // Check if click is outside sidebar and toggle button
             if (!$sidebar.is(e.target) && $sidebar.has(e.target).length === 0 &&
                 !$toggleBtn.is(e.target) && $toggleBtn.has(e.target).length === 0) {
@@ -88,12 +99,12 @@ $(document).ready(function() {
     });
 
     // Handle escape key to close sidebar on mobile
-    $(document).on('keydown', function(e) {
+    $(document).on('keydown', function (e) {
         if (e.key === 'Escape' && body.hasClass('sidebar-open')) {
             body.removeClass('sidebar-open');
             body.css('overflow', '');
         }
-    }); 
+    });
 
     const logout = async () => {
         const data = await fetchData(`${BASE_URL}/logout`, 'POST');
@@ -106,7 +117,7 @@ $(document).ready(function() {
         }
     };
 
-    $('#logout-button, #logout-dropdown-button').on('click', function(e) {
+    $('#logout-button, #logout-dropdown-button').on('click', function (e) {
         e.preventDefault();
         $('#logoutConfirmModal').modal('show');
     });
@@ -114,7 +125,7 @@ $(document).ready(function() {
     $('#confirmLogoutBtn').on('click', logout);
 
     const fetchData = async (url, method = 'GET', body = null, isFormData = false, bypassAuthRedirect = false) => {
-        const currentAuthToken = localStorage.getItem('authToken'); 
+        const currentAuthToken = localStorage.getItem('authToken');
         const headers = {
             'Authorization': `Bearer ${currentAuthToken}`
         };
@@ -134,20 +145,20 @@ $(document).ready(function() {
 
         try {
             const response = await fetch(url, options);
-            
+
             // Check if response is JSON
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     if ((response.status === 401 || response.status === 403) && !bypassAuthRedirect) {
                         localStorage.removeItem('authToken');
                         sessionStorage.setItem('logoutMessage', data.message || 'Your session has expired. Please log in again.');
                         window.location.href = 'index.html';
-                        return; 
+                        return;
                     }
-                    return { ...data, status: response.status }; 
+                    return { ...data, status: response.status };
                 }
                 return data;
             } else {
@@ -181,22 +192,22 @@ $(document).ready(function() {
             }
         } else if (sectionId === '#accounts-section') {
             currentSectionTitle.text('Accounts');
-            loadUserAccountInfo(); 
+            loadUserAccountInfo();
         }
     };
 
-    sidebarNavLinks.on('click', function(e) {
+    sidebarNavLinks.on('click', function (e) {
         e.preventDefault();
         const section = $(this).data('section');
         showSection(`#${section}-section`);
     });
 
-    $('.dropdown-item[data-section="accounts"]').on('click', function(e) {
+    $('.dropdown-item[data-section="accounts"]').on('click', function (e) {
         e.preventDefault();
         showSection('#accounts-section');
     });
 
-    let siteAccountsTable; 
+    let siteAccountsTable;
 
     const loadUserAccountInfo = async () => {
         const data = await fetchData(`${BASE_URL}/user-info`, 'GET');
@@ -212,16 +223,16 @@ $(document).ready(function() {
         }
     };
 
-    $('#updateAccountInfoForm').on('submit', function(event) {
+    $('#updateAccountInfoForm').on('submit', function (event) {
         event.preventDefault();
         $('#updateAccountInfoConfirmModal').modal('show');
     });
 
-    $('#accountInfoUpdateConfirmationInput').on('input', function() {
+    $('#accountInfoUpdateConfirmationInput').on('input', function () {
         $('#confirmAccountInfoUpdateBtn').prop('disabled', $(this).val().toLowerCase() !== 'confirm');
     });
 
-    $('#confirmAccountInfoUpdateBtn').on('click', async function() {
+    $('#confirmAccountInfoUpdateBtn').on('click', async function () {
         const userId = $('#userId').val();
         const firstname = $('#firstName').val();
         const middlename = $('#middleName').val();
@@ -233,7 +244,7 @@ $(document).ready(function() {
             showToast(data.message, 'success');
             $('#updateAccountInfoConfirmModal').modal('hide');
             $('#accountInfoUpdateConfirmationInput').val('');
-            loadUserAccountInfo(); 
+            loadUserAccountInfo();
         } else if (data) {
             showToast(data.message, 'error');
         }
@@ -243,8 +254,8 @@ $(document).ready(function() {
         ajax: {
             url: `${BASE_URL}/accounts`,
             type: 'GET',
-            headers: { 
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}` 
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
             },
             dataSrc: 'accounts'
         },
@@ -254,13 +265,13 @@ $(document).ready(function() {
             { data: 'username' },
             {
                 data: 'password',
-                render: function(data, type, row) {
-                    return '********'; 
+                render: function (data, type, row) {
+                    return '********';
                 }
             },
             {
                 data: 'image',
-                render: function(data, type, row) {
+                render: function (data, type, row) {
                     // Handle Supabase Storage URLs and local image paths
                     let imageUrl;
                     if (data) {
@@ -280,7 +291,7 @@ $(document).ready(function() {
 
             {
                 data: null,
-                render: function(data, type, row) {
+                render: function (data, type, row) {
                     // Handle Supabase Storage URLs and local image paths for edit button
                     let imageAttribute;
                     if (row.image) {
@@ -294,7 +305,7 @@ $(document).ready(function() {
                     } else {
                         imageAttribute = 'https://nttadnyxpbuwuhgtpvjh.supabase.co/storage/v1/object/public/images/default.png';
                     }
-                    
+
                     return `
                         <button class="btn btn-sm btn-info edit-btn" data-id="${row.id}" data-site="${row.site}" data-username="${row.username}" data-password="${row.password}" data-image="${imageAttribute}" data-bs-toggle="modal" data-bs-target="#editAccountModal">Edit</button>
                         <button class="btn btn-sm btn-danger delete-btn" data-id="${row.id}" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Delete</button>
@@ -305,7 +316,7 @@ $(document).ready(function() {
         responsive: true
     });
 
-    $(document).on('click', '.toggle-password', function() {
+    $(document).on('click', '.toggle-password', function () {
         const targetId = $(this).data('target');
         const passwordInput = $(`#${targetId}`);
         const icon = $(this).find('i');
@@ -319,7 +330,7 @@ $(document).ready(function() {
         }
     });
 
-    $('#addAccountForm').on('submit', async function(event) {
+    $('#addAccountForm').on('submit', async function (event) {
         event.preventDefault();
         const site = $('#addSite').val();
         const username = $('#addUsername').val();
@@ -333,7 +344,7 @@ $(document).ready(function() {
         if (imageFile) {
             formData.append('image', imageFile);
         } else {
-            formData.append('image', 'https://nttadnyxpbuwuhgtpvjh.supabase.co/storage/v1/object/public/images/default.png'); 
+            formData.append('image', 'https://nttadnyxpbuwuhgtpvjh.supabase.co/storage/v1/object/public/images/default.png');
         }
 
         const data = await fetchData(`${BASE_URL}/accounts`, 'POST', formData, true);
@@ -341,19 +352,19 @@ $(document).ready(function() {
             showToast(data.message, 'success');
             $('#addAccountModal').modal('hide');
             $('#addAccountForm')[0].reset();
-            siteAccountsTable.ajax.reload(); 
+            siteAccountsTable.ajax.reload();
         } else if (data) {
             showToast(data.message, 'error');
         }
     });
 
-    $('#siteAccountsTable tbody').on('click', '.edit-btn', function() {
+    $('#siteAccountsTable tbody').on('click', '.edit-btn', function () {
         const id = $(this).data('id');
         const site = $(this).data('site');
         const username = $(this).data('username');
         const password = $(this).data('password');
         const image = $(this).data('image');
-        
+
         // Handle Supabase Storage URLs and local image paths
         let relativeImagePath = image;
         if (image && image.startsWith('http')) {
@@ -373,18 +384,18 @@ $(document).ready(function() {
         $('#editAccountForm').data('currentImage', relativeImagePath);
     });
 
-    $('#editAccountForm').on('submit', function(event) {
+    $('#editAccountForm').on('submit', function (event) {
         event.preventDefault();
         $('#editConfirmationInput').val('');
         $('#confirmEditBtn').prop('disabled', true);
         $('#editAccountConfirmModal').modal('show');
     });
 
-    $('#editConfirmationInput').on('input', function() {
+    $('#editConfirmationInput').on('input', function () {
         $('#confirmEditBtn').prop('disabled', $(this).val().toLowerCase() !== 'confirm');
     });
 
-    $('#confirmEditBtn').on('click', async function() {
+    $('#confirmEditBtn').on('click', async function () {
         const id = $('#editAccountId').val();
         const site = $('#editSite').val();
         const username = $('#editUsername').val();
@@ -407,26 +418,26 @@ $(document).ready(function() {
             $('#editAccountModal').modal('hide');
             $('#editAccountConfirmModal').modal('hide');
             $('#editConfirmationInput').val('');
-            $('#editAccountImage').val(''); 
-            $('#currentAccountImage').hide(); 
-            siteAccountsTable.ajax.reload(); 
+            $('#editAccountImage').val('');
+            $('#currentAccountImage').hide();
+            siteAccountsTable.ajax.reload();
         } else if (data) {
             showToast(data.message, 'error');
         }
     });
 
-    $('#siteAccountsTable tbody').on('click', '.delete-btn', function() {
+    $('#siteAccountsTable tbody').on('click', '.delete-btn', function () {
         const id = $(this).data('id');
         $('#deleteAccountIdConfirm').val(id);
         $('#deleteConfirmationInput').val('');
         $('#confirmDeleteBtn').prop('disabled', true);
     });
 
-    $('#deleteConfirmationInput').on('input', function() {
+    $('#deleteConfirmationInput').on('input', function () {
         $('#confirmDeleteBtn').prop('disabled', $(this).val().toLowerCase() !== 'delete');
     });
 
-    $('#confirmDeleteBtn').on('click', async function() {
+    $('#confirmDeleteBtn').on('click', async function () {
         const id = $('#deleteAccountIdConfirm').val();
         const data = await fetchData(`${BASE_URL}/accounts/${id}`, 'DELETE');
         if (data && data.success) {
@@ -467,7 +478,7 @@ $(document).ready(function() {
 
     $('#newPassword, #confirmNewPassword').on('input', validatePasswordFields);
 
-    $('#currentPassword').on('input', async function() {
+    $('#currentPassword').on('input', async function () {
         const currentPassword = $(this).val();
         if (currentPassword.length > 0) {
             const data = await fetchData(`${BASE_URL}/verify-current-password`, 'POST', { currentPassword }, false, true);
@@ -475,12 +486,12 @@ $(document).ready(function() {
 
             }
         } else {
-            
+
         }
-        validatePasswordFields(); 
+        validatePasswordFields();
     });
 
-    $('#changePasswordForm').on('submit', function(event) {
+    $('#changePasswordForm').on('submit', function (event) {
         event.preventDefault();
         if (!validatePasswordFields()) {
             return;
@@ -488,11 +499,11 @@ $(document).ready(function() {
         $('#changePasswordConfirmModal').modal('show');
     });
 
-    $('#passwordUpdateConfirmationInput').on('input', function() {
+    $('#passwordUpdateConfirmationInput').on('input', function () {
         $('#confirmPasswordUpdateBtn').prop('disabled', $(this).val().toLowerCase() !== 'confirm');
     });
 
-    $('#confirmPasswordUpdateBtn').on('click', async function() {
+    $('#confirmPasswordUpdateBtn').on('click', async function () {
         const currentPassword = $('#currentPassword').val();
         const newPassword = $('#newPassword').val();
         const confirmNewPassword = $('#confirmNewPassword').val();
@@ -506,16 +517,16 @@ $(document).ready(function() {
             $('#changePasswordForm')[0].reset();
             $('#changePasswordConfirmModal').modal('hide');
             $('#passwordUpdateConfirmationInput').val('');
-            $('#changePasswordForm button[type="submit"]').prop('disabled', true); 
+            $('#changePasswordForm button[type="submit"]').prop('disabled', true);
             setTimeout(() => {
                 window.location.reload();
-            }, 500); 
+            }, 500);
         } else if (data) {
             showToast(data.message, 'error');
         }
     });
 
-    $('#changeProfilePictureForm').on('submit', async function(event) {
+    $('#changeProfilePictureForm').on('submit', async function (event) {
         event.preventDefault();
         const fileInput = $('#profilePicture')[0];
         if (fileInput.files.length === 0) {
@@ -554,18 +565,18 @@ $(document).ready(function() {
     }
 
     if ($(window).width() <= 768) {
-        body.removeClass('sidebar-open'); 
+        body.removeClass('sidebar-open');
     } else {
-        body.removeClass('sidebar-collapsed'); 
+        body.removeClass('sidebar-collapsed');
     }
 
     // Fix aria-hidden focus issue for all modals
-    const modals = ['#addAccountModal', '#editAccountModal', '#deleteAccountModal', 
-                    '#editAccountConfirmModal', '#updateAccountInfoConfirmModal', 
-                    '#changePasswordConfirmModal', '#logoutConfirmModal'];
-    
+    const modals = ['#addAccountModal', '#editAccountModal', '#deleteAccountModal',
+        '#editAccountConfirmModal', '#updateAccountInfoConfirmModal',
+        '#changePasswordConfirmModal', '#logoutConfirmModal'];
+
     modals.forEach(modalId => {
-        $(modalId).on('hide.bs.modal', function(e) {
+        $(modalId).on('hide.bs.modal', function (e) {
             // Remove focus from any focused element within the modal before hiding
             const focusedElement = $(this).find(':focus');
             if (focusedElement.length) {
@@ -573,7 +584,7 @@ $(document).ready(function() {
             }
         });
 
-        $(modalId).on('hidden.bs.modal', function(e) {
+        $(modalId).on('hidden.bs.modal', function (e) {
             // Ensure focus is properly managed after modal closes
             setTimeout(() => {
                 if (document.activeElement === document.body || !document.activeElement) {

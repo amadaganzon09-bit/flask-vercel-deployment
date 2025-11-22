@@ -1,10 +1,26 @@
 // Use the Vercel backend URL for all environments
-const BASE_URL = 'https://express-vercel-deployment-mu.vercel.app';
+// Use relative path for backend URL to support both localhost and Vercel
+// Use relative path for backend URL to support both localhost and Vercel
+// But if running on Live Server (port 5500), point to Flask (port 5000)
+const getBackendUrl = () => {
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+
+    // If running on localhost/127.0.0.1 and NOT on port 5000 (Flask's port),
+    // assume we are in dev mode (e.g., Live Server) and point to Flask.
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '5000') {
+        return 'http://127.0.0.1:5000';
+    }
+
+    // Otherwise (Production Vercel or Flask serving frontend), use relative path
+    return '';
+};
+const BASE_URL = getBackendUrl();
 
 // Make BASE_URL available globally for other scripts
 window.BASE_URL = BASE_URL;
 
-window.showToast = function(message, type = 'info', duration = 3000) {
+window.showToast = function (message, type = 'info', duration = 3000) {
     let className = 'toastify-info';
 
     switch (type) {
@@ -36,7 +52,7 @@ window.showToast = function(message, type = 'info', duration = 3000) {
         position: "right",
         className: className,
         stopOnFocus: true,
-        callback: function() {
+        callback: function () {
             // Cleanup when toast is removed
         }
     });
@@ -48,21 +64,21 @@ window.showToast = function(message, type = 'info', duration = 3000) {
     setTimeout(() => {
         // Get all active toasts
         const allToasts = document.querySelectorAll('.toastify.on');
-        
+
         // Find the newest toast with our className that doesn't have a progress bar yet
         for (let i = allToasts.length - 1; i >= 0; i--) {
             const toastElement = allToasts[i];
-            
-            if (toastElement.classList.contains(className) && 
+
+            if (toastElement.classList.contains(className) &&
                 !toastElement.hasAttribute('data-progress-added')) {
-                
+
                 // Mark this toast as having progress bar
                 toastElement.setAttribute('data-progress-added', 'true');
-                
+
                 // Ensure toast has proper positioning
                 toastElement.style.position = 'relative';
                 toastElement.style.overflow = 'hidden';
-                
+
                 // Create progress bar container
                 const progressBar = document.createElement('div');
                 progressBar.className = 'toast-progress-bar';
@@ -102,30 +118,30 @@ window.showToast = function(message, type = 'info', duration = 3000) {
                 let pauseTime = 0;
                 let totalPausedTime = 0;
 
-                toastElement.addEventListener('mouseenter', function() {
+                toastElement.addEventListener('mouseenter', function () {
                     if (!isPaused) {
                         isPaused = true;
                         pauseTime = Date.now();
-                        
+
                         // Get current computed width
                         const computedStyle = window.getComputedStyle(progressFill);
                         const currentWidth = computedStyle.width;
-                        
+
                         // Stop transition and freeze at current position
                         progressFill.style.transition = 'none';
                         progressFill.style.width = currentWidth;
                     }
                 });
 
-                toastElement.addEventListener('mouseleave', function() {
+                toastElement.addEventListener('mouseleave', function () {
                     if (isPaused) {
                         isPaused = false;
                         totalPausedTime += (Date.now() - pauseTime);
-                        
+
                         // Calculate remaining time
                         const elapsed = Date.now() - toastElement._startTime - totalPausedTime;
                         const remaining = duration - elapsed;
-                        
+
                         if (remaining > 0) {
                             // Resume animation with remaining time
                             progressFill.style.transition = `width ${remaining}ms linear`;
@@ -136,7 +152,7 @@ window.showToast = function(message, type = 'info', duration = 3000) {
 
                 // Store start time
                 toastElement._startTime = Date.now();
-                
+
                 // Only process the first matching toast
                 break;
             }
@@ -154,11 +170,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fix aria-hidden focus issue for modals
     const modals = ['otpVerificationModal', 'forgotPasswordModal'];
-    
+
     modals.forEach(modalId => {
         const modalElement = document.getElementById(modalId);
         if (modalElement) {
-            modalElement.addEventListener('hide.bs.modal', function(e) {
+            modalElement.addEventListener('hide.bs.modal', function (e) {
                 // Remove focus from any focused element within the modal before hiding
                 const focusedElement = this.querySelector(':focus');
                 if (focusedElement) {
@@ -166,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            modalElement.addEventListener('hidden.bs.modal', function(e) {
+            modalElement.addEventListener('hidden.bs.modal', function (e) {
                 // Ensure focus is properly managed after modal closes
                 setTimeout(() => {
                     if (document.activeElement === document.body || !document.activeElement) {
@@ -186,7 +202,7 @@ const strengthBar = document.querySelector('.strength-bar');
 const strengthText = document.querySelector('.strength-text');
 const otpCountdownElement = document.getElementById('otp-countdown');
 const resendOtpButton = document.getElementById('resendOtpButton');
-const otpInputSingle = document.getElementById('otp-input-single'); 
+const otpInputSingle = document.getElementById('otp-input-single');
 let otpVerificationModal;
 if (document.getElementById('otpVerificationModal')) {
     otpVerificationModal = new bootstrap.Modal(document.getElementById('otpVerificationModal'));
@@ -197,7 +213,7 @@ if (document.getElementById('forgotPasswordModal')) {
     forgotPasswordModal = new bootstrap.Modal(document.getElementById('forgotPasswordModal'));
 }
 const forgotPasswordRequestOtpForm = document.getElementById('forgotPasswordRequestOtpForm');
-const forgotPasswordVerifyOtpForm = document.getElementById('forgotPasswordVerifyOtpForm'); 
+const forgotPasswordVerifyOtpForm = document.getElementById('forgotPasswordVerifyOtpForm');
 const forgotPasswordResetForm = document.getElementById('forgotPasswordResetForm');
 const forgotEmailInput = document.getElementById('forgot-email');
 const forgotOtpCountdownElement = document.getElementById('forgot-otp-countdown');
@@ -206,13 +222,13 @@ const forgotOtpInputSingle = document.getElementById('forgot-otp-input-single');
 const forgotNewPasswordInput = document.getElementById('forgot-new-password');
 const forgotConfirmNewPasswordInput = document.getElementById('forgot-confirm-new-password');
 const forgotBackToEmailButton = document.getElementById('forgotBackToEmailButton');
-const forgotPasswordBreadcrumbs = document.getElementById('forgotPasswordBreadcrumbs'); 
+const forgotPasswordBreadcrumbs = document.getElementById('forgotPasswordBreadcrumbs');
 
-let registrationData = {}; 
-let countdownInterval; 
-let forgotPasswordCountdownInterval; 
-let forgotPasswordEmail = ''; 
-let currentForgotPasswordStep = 'email'; 
+let registrationData = {};
+let countdownInterval;
+let forgotPasswordCountdownInterval;
+let forgotPasswordEmail = '';
+let currentForgotPasswordStep = 'email';
 
 if (registerBtn) {
     registerBtn.addEventListener('click', () => {
@@ -221,16 +237,16 @@ if (registerBtn) {
         if (otpVerificationModal) {
             otpVerificationModal.hide();
         }
-        
+
         document.getElementById('signupForm').reset();
         strengthBar.style.width = '0%';
         strengthText.textContent = '';
 
         if (otpInputSingle) otpInputSingle.value = '';
-        
-        resendOtpButton.style.display = 'none'; 
-        clearInterval(countdownInterval); 
-        otpCountdownElement.textContent = '5:00'; 
+
+        resendOtpButton.style.display = 'none';
+        clearInterval(countdownInterval);
+        otpCountdownElement.textContent = '5:00';
     });
 }
 
@@ -294,7 +310,7 @@ const toggleSpinner = (form, show) => {
     const buttonText = button.querySelector('.button-text');
     const spinner = button.querySelector('.spinner-border');
 
-    if (!button) return; 
+    if (!button) return;
 
     if (show) {
         buttonText.style.display = 'none';
@@ -308,11 +324,11 @@ const toggleSpinner = (form, show) => {
 };
 
 if (document.getElementById('requestOtpButton')) {
-    document.getElementById('requestOtpButton').addEventListener('click', async function(event) {
+    document.getElementById('requestOtpButton').addEventListener('click', async function (event) {
         event.preventDefault();
         const signupForm = document.getElementById('signupForm');
         toggleSpinner(signupForm, true);
-        
+
         const firstname = document.getElementById('signup-firstname').value;
         const middlename = document.getElementById('signup-middlename').value;
         const lastname = document.getElementById('signup-lastname').value;
@@ -341,8 +357,8 @@ if (document.getElementById('requestOtpButton')) {
             showToast(data.message, data.success ? "success" : "error");
 
             if (data.success) {
-                otpVerificationModal.show(); 
-                startCountdown(5 * 60, otpCountdownElement, resendOtpButton); 
+                otpVerificationModal.show();
+                startCountdown(5 * 60, otpCountdownElement, resendOtpButton);
             }
         } catch (error) {
             console.error('Error requesting OTP:', error);
@@ -357,8 +373,8 @@ function startCountdown(duration, displayElement, resendButton) {
     let timer = duration;
     let minutes, seconds;
 
-    resendButton.disabled = true; 
-    resendButton.style.display = 'none'; 
+    resendButton.disabled = true;
+    resendButton.style.display = 'none';
 
     if (displayElement === otpCountdownElement) {
         clearInterval(countdownInterval);
@@ -379,8 +395,8 @@ function startCountdown(duration, displayElement, resendButton) {
             clearInterval(intervalId);
             displayElement.textContent = "0:00";
             showToast("OTP has expired. Please resend.", "error");
-            resendButton.disabled = false; 
-            resendButton.style.display = 'block'; 
+            resendButton.disabled = false;
+            resendButton.style.display = 'block';
         }
     }, 1000);
 
@@ -393,14 +409,14 @@ function startCountdown(duration, displayElement, resendButton) {
 
 if (resendOtpButton) {
     resendOtpButton.addEventListener('click', async () => {
-        const email = document.getElementById('signup-email').value; 
+        const email = document.getElementById('signup-email').value;
 
         if (!email) {
             showToast("Please enter your email to resend OTP.", "error");
             return;
         }
 
-        resendOtpButton.disabled = true; 
+        resendOtpButton.disabled = true;
         resendOtpButton.style.display = 'none';
 
         try {
@@ -416,22 +432,22 @@ if (resendOtpButton) {
             showToast(data.message, data.success ? "success" : "error");
 
             if (data.success) {
-                startCountdown(5 * 60, otpCountdownElement, resendOtpButton); 
+                startCountdown(5 * 60, otpCountdownElement, resendOtpButton);
             } else {
-                resendOtpButton.disabled = false; 
-                resendOtpButton.style.display = 'block'; 
+                resendOtpButton.disabled = false;
+                resendOtpButton.style.display = 'block';
             }
         } catch (error) {
             console.error('Error resending OTP:', error);
             showToast("An error occurred while resending OTP.", "error");
-            resendOtpButton.disabled = false; 
-            resendOtpButton.style.display = 'block'; 
+            resendOtpButton.disabled = false;
+            resendOtpButton.style.display = 'block';
         }
     });
 }
 
 if (document.getElementById('verifyOtpButton')) {
-    document.getElementById('verifyOtpButton').addEventListener('click', async function(event) {
+    document.getElementById('verifyOtpButton').addEventListener('click', async function (event) {
         event.preventDefault();
         const otpVerificationForm = document.getElementById('otpVerificationForm');
         toggleSpinner(otpVerificationForm, true);
@@ -463,14 +479,14 @@ if (document.getElementById('verifyOtpButton')) {
                     localStorage.setItem('authToken', data.token);
                 }
                 document.getElementById('signupForm').reset();
-                document.getElementById('otpVerificationForm').reset(); 
+                document.getElementById('otpVerificationForm').reset();
                 strengthBar.style.width = '0%';
                 strengthText.textContent = '';
                 registrationData = {};
-                otpVerificationModal.hide(); 
+                otpVerificationModal.hide();
                 setTimeout(() => {
-                    container.classList.remove("active"); 
-                    document.getElementById('signupForm').style.display = 'block'; 
+                    container.classList.remove("active");
+                    document.getElementById('signupForm').style.display = 'block';
                 }, 1000);
             } else {
                 if (otpInputSingle) otpInputSingle.value = '';
@@ -486,18 +502,18 @@ if (document.getElementById('verifyOtpButton')) {
 
 if (document.getElementById('backToSignupButton')) {
     document.getElementById('backToSignupButton').addEventListener('click', () => {
-        otpVerificationModal.hide(); 
-        
+        otpVerificationModal.hide();
+
         document.getElementById('signupForm').reset();
         strengthBar.style.width = '0%';
         strengthText.textContent = '';
 
         if (otpInputSingle) otpInputSingle.value = '';
 
-        clearInterval(countdownInterval); 
-        otpCountdownElement.textContent = '5:00'; 
-        resendOtpButton.style.display = 'none'; 
-        registrationData = {}; 
+        clearInterval(countdownInterval);
+        otpCountdownElement.textContent = '5:00';
+        resendOtpButton.style.display = 'none';
+        registrationData = {};
     });
 }
 
@@ -506,7 +522,7 @@ if (otpInputSingle) {
     otpInputSingle.addEventListener('input', (event) => {
         // Only allow numeric input
         otpInputSingle.value = otpInputSingle.value.replace(/[^0-9]/g, '');
-        
+
         // Limit to 6 digits
         if (otpInputSingle.value.length > 6) {
             otpInputSingle.value = otpInputSingle.value.slice(0, 6);
@@ -522,10 +538,10 @@ if (otpInputSingle) {
 }
 
 if (document.getElementById('loginForm')) {
-    document.getElementById('loginForm').addEventListener('submit', function(event) {
+    document.getElementById('loginForm').addEventListener('submit', function (event) {
         event.preventDefault();
         toggleSpinner(this, true);
-        
+
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const passwordField = document.getElementById('login-password');
@@ -537,9 +553,9 @@ if (document.getElementById('loginForm')) {
             },
             body: JSON.stringify({ email, password })
         })
-        .then(response => response.json())
-        .then(data => {
-            showToast(data.message, data.success ? "success" : "error");
+            .then(response => response.json())
+            .then(data => {
+                showToast(data.message, data.success ? "success" : "error");
                 if (data.success) {
                     localStorage.setItem('authToken', data.token);
                     setTimeout(() => {
@@ -548,10 +564,10 @@ if (document.getElementById('loginForm')) {
                 } else {
                     passwordField.value = '';
                 }
-        })
-        .finally(() => {
-            toggleSpinner(this, false);
-        });
+            })
+            .finally(() => {
+                toggleSpinner(this, false);
+            });
     });
 }
 
@@ -571,14 +587,14 @@ if (forgotPasswordBreadcrumbs) {
     if (forgotPasswordLink) {
         forgotPasswordLink.addEventListener('click', () => {
             forgotPasswordRequestOtpForm.style.display = 'block';
-            forgotPasswordVerifyOtpForm.style.display = 'none'; 
+            forgotPasswordVerifyOtpForm.style.display = 'none';
             forgotPasswordResetForm.style.display = 'none';
             forgotEmailInput.value = '';
-            if (forgotOtpInputSingle) forgotOtpInputSingle.value = ''; 
-            forgotNewPasswordInput.value = ''; 
-            forgotConfirmNewPasswordInput.value = ''; 
-            clearInterval(forgotPasswordCountdownInterval); 
-            forgotOtpCountdownElement.textContent = '5:00'; 
+            if (forgotOtpInputSingle) forgotOtpInputSingle.value = '';
+            forgotNewPasswordInput.value = '';
+            forgotConfirmNewPasswordInput.value = '';
+            clearInterval(forgotPasswordCountdownInterval);
+            forgotOtpCountdownElement.textContent = '5:00';
             forgotResendOtpButton.style.display = 'none';
             currentForgotPasswordStep = 'email';
             updateForgotPasswordBreadcrumbs(currentForgotPasswordStep);
@@ -589,9 +605,9 @@ if (forgotPasswordBreadcrumbs) {
         forgotPasswordRequestOtpForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             toggleSpinner(forgotPasswordRequestOtpForm, true);
-            
+
             const email = forgotEmailInput.value;
-            forgotPasswordEmail = email; 
+            forgotPasswordEmail = email;
 
             try {
                 const response = await fetch(`${BASE_URL}/forgot-password/request-otp`, {
@@ -607,10 +623,10 @@ if (forgotPasswordBreadcrumbs) {
 
                 if (data.success) {
                     forgotPasswordRequestOtpForm.style.display = 'none';
-                    forgotPasswordVerifyOtpForm.style.display = 'block'; 
+                    forgotPasswordVerifyOtpForm.style.display = 'block';
                     currentForgotPasswordStep = 'otp';
                     updateForgotPasswordBreadcrumbs(currentForgotPasswordStep);
-                    startCountdown(5 * 60, forgotOtpCountdownElement, forgotResendOtpButton); 
+                    startCountdown(5 * 60, forgotOtpCountdownElement, forgotResendOtpButton);
                 }
             } catch (error) {
                 console.error('Error requesting OTP for forgot password:', error);
@@ -648,12 +664,12 @@ if (forgotPasswordBreadcrumbs) {
 
                 if (data.success) {
                     forgotPasswordVerifyOtpForm.style.display = 'none';
-                    forgotPasswordResetForm.style.display = 'block'; 
+                    forgotPasswordResetForm.style.display = 'block';
                     document.getElementById('forgot-username-email').value = forgotPasswordEmail;
                     currentForgotPasswordStep = 'reset';
                     updateForgotPasswordBreadcrumbs(currentForgotPasswordStep);
-                    clearInterval(forgotPasswordCountdownInterval); 
-                    forgotOtpCountdownElement.textContent = '5:00'; 
+                    clearInterval(forgotPasswordCountdownInterval);
+                    forgotOtpCountdownElement.textContent = '5:00';
                     forgotResendOtpButton.style.display = 'none';
                 } else {
                     if (forgotOtpInputSingle) forgotOtpInputSingle.value = '';
@@ -747,7 +763,7 @@ if (forgotPasswordBreadcrumbs) {
                 }).showToast();
 
                 if (data.success) {
-                    forgotPasswordModal.hide(); 
+                    forgotPasswordModal.hide();
                 }
             } catch (error) {
                 console.error('Error resetting password:', error);
@@ -773,17 +789,17 @@ if (forgotPasswordBreadcrumbs) {
                 forgotPasswordRequestOtpForm.style.display = 'block';
                 currentForgotPasswordStep = 'email';
                 updateForgotPasswordBreadcrumbs(currentForgotPasswordStep);
-                clearInterval(forgotPasswordCountdownInterval); 
-                forgotOtpCountdownElement.textContent = '5:00'; 
-                forgotResendOtpButton.style.display = 'none'; 
-                forgotEmailInput.value = ''; 
+                clearInterval(forgotPasswordCountdownInterval);
+                forgotOtpCountdownElement.textContent = '5:00';
+                forgotResendOtpButton.style.display = 'none';
+                forgotEmailInput.value = '';
             } else if (currentForgotPasswordStep === 'reset') {
                 forgotPasswordResetForm.style.display = 'none';
                 forgotPasswordVerifyOtpForm.style.display = 'block';
                 currentForgotPasswordStep = 'otp';
                 updateForgotPasswordBreadcrumbs(currentForgotPasswordStep);
                 forgotNewPasswordInput.value = '';
-                forgotConfirmNewPasswordInput.value = ''; 
+                forgotConfirmNewPasswordInput.value = '';
                 startCountdown(5 * 60, forgotOtpCountdownElement, forgotResendOtpButton);
             }
             if (forgotOtpInputSingle) forgotOtpInputSingle.value = '';
@@ -795,7 +811,7 @@ if (forgotPasswordBreadcrumbs) {
         forgotOtpInputSingle.addEventListener('input', (event) => {
             // Only allow numeric input
             forgotOtpInputSingle.value = forgotOtpInputSingle.value.replace(/[^0-9]/g, '');
-            
+
             // Limit to 6 digits
             if (forgotOtpInputSingle.value.length > 6) {
                 forgotOtpInputSingle.value = forgotOtpInputSingle.value.slice(0, 6);
