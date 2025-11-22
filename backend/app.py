@@ -2,6 +2,10 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+import sys
+
+# Add current directory to path to ensure imports work
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Load environment variables
 load_dotenv()
