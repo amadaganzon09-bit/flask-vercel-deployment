@@ -12,8 +12,13 @@ const getBackendUrl = () => {
         return 'http://127.0.0.1:5000';
     }
 
-    // Otherwise (Production Vercel or Flask serving frontend), use relative path
-    return '';
+    // For Vercel deployment, use the production URL
+    // This ensures that even if the frontend is served from a different Vercel domain/path,
+    // it knows where to hit the API.
+    // HOWEVER, since we are serving frontend FROM backend in Vercel (static_folder),
+    // a relative path '' is actually correct for Vercel.
+    // But if you want to be explicit or if you are running frontend separately:
+    return 'https://flask-vercel-deployment-phi.vercel.app';
 };
 const BASE_URL = getBackendUrl();
 
